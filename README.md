@@ -36,9 +36,13 @@ OptimalAptamerFinder
 ```
 2. Convert the fastq .files to .txt files using the following command:
 ```
-python3 src/fastq_to_txt.py data/theophylline_fastq_r2/ r2
+python3 src/fastq2txt.py theophylline r2
 ```
 3. Run the program and see the output in the `results/` folder by running the following command:
 ```
-python3 src/Sequence.py
+python3 src/Sequence.py with theophylline
+```
+To run the program with several binding_targets, separate them by a hyphen.
+```
+python3 src/Sequence.py with theophylline-uricacid
 ```

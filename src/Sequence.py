@@ -19,10 +19,12 @@ from tqdm import tqdm
 from src.nc2hp import *
 import datetime
 
+
 TIME = str(datetime.datetime.now())
 if not os.path.exists('results'):
     os.mkdir('results')
-os.makedirs('results/' + TIME)
+if not os.path.exists('results/'+TIME):
+    os.mkdir('results/'+TIME)
 #TabularMSA, DNA, local_pairwise_align_ssw = "", "", ""
 colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'grey']
 higlights = ['on_cyan', 'on_red', 'on_green', 'on_yellow', 'on_blue', 'on_magenta']
@@ -706,37 +708,6 @@ class SequenceLibrary():
         return M
 
 
-def main():
-    sequencelib = SequenceLibrary(with_primers=False)
-    for binding_target in ['ampicillin', 'chloramphenicol', 'liposome']: #, 'caffeine', 'theophylline', 'lactate', 'uricacid', 'oxytetracycline', 'uricacid']:
-        if binding_target == 'caffeine':
-            rnds = [12, 15, 20]
-        elif binding_target == 'lactate':
-            rnds = [14, 18, 19, 20]
-        elif binding_target == 'oxytetracycline':
-            rnds = [17, 21]
-        elif binding_target == 'theophylline':
-            rnds = ['06', 10, 12, 15, 16, 18, 20, 22]
-        elif binding_target == 'uricacid':
-            rnds = [16, 18]
-        elif binding_target == 'ampicillin':
-            rnds = [1]
-        elif binding_target =='chloramphenicol':
-            rnds = [1]
-        elif binding_target == 'liposome':
-            rnds = [8, 11]
-        for rnd in rnds:
-            rnd = str(rnd)
-            sequencelib.add_data(binding_target, rnd, structure_mode='from_ct', top_k=None)
-            cmd = "rm temp_ct.txt"
-            subprocess.call([cmd], shell=True)
-            cmd = "rm temp_seqs.txt"
-            subprocess.call([cmd], shell=True)
-    with open(f'results/{TIME}/sequencelib.pickle', 'wb') as f:
-        pickle.dump(sequencelib, f)
-    f.close()
-
-
 def get_priority_clusters(alignment_threshold=0.6):
     sequencelib_path = f'results/{TIME}/sequencelib.pickle'
     with open(sequencelib_path, 'rb') as f:
@@ -889,6 +860,25 @@ def generate_all_recommendations():
             plt.close()
 
 
-if __name__ == '__main__':
+def main(binding_targets='theophylline'):
+    sequencelib = SequenceLibrary(with_primers=False)
+    for binding_target in binding_targets:
+        with open(f'data/{binding_target[:4]}list.txt') as f:
+            rnds = [file.strip().replace(binding_target[:4], '') for file in f.readlines()]
+        for rnd in rnds:
+            rnd = str(rnd)
+            sequencelib.add_data(binding_target, rnd, structure_mode='from_ct', top_k=None)
+            cmd = "rm temp_ct.txt"
+            subprocess.call([cmd], shell=True)
+            cmd = "rm temp_seqs.txt"
+            subprocess.call([cmd], shell=True)
+    with open(f'results/{TIME}/sequencelib.pickle', 'wb') as f:
+        pickle.dump(sequencelib, f)
+    f.close()
+    get_priority_clusters()
     generate_all_recommendations()
 
+
+if __name__ == '__main__':
+    binding_targets = sys.argv[1].split("-")
+    main(binding_targets=binding_targets)
