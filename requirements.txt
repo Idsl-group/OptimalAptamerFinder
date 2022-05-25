@@ -1,0 +1,8 @@
+pyfastaq
+numpy
+pandas
+termcolor
+matplotlib
+scipy
+scikit-bio
+tqdm
