@@ -16,22 +16,27 @@ This program is designed to run on a Linux environment. (RNAFold is complicated 
 OptimalAptamerFinder
 └───data
     ├───theophylline_fastq_r2
-    │   ├───theo06.fastq
-    │   ├───theo10.fastq
-    │   ├───theo12.fastq
-    │   ├───theo15.fastq
-    │   ├───theo16.fastq
-    │   ├───theo18.fastq
-    │   ├───theo20.fastq
-    │   ├───theo22.fastq
+        ├───theo06.fastq
+        ├───theo10.fastq
+        ...
     └───theo_primers.txt
             "GGTCTCAGCAGGAGTCCTCCT\nGGTCTCAGCAGGAGTCCTCCT"
     └───theolist_cut_22.txt
             "theo06\ntheo10\ntheo12\ntheo15\ntheo16\ntheo18\ntheo20\ntheo22"
+└───results
+    ├───experimentID
+        ├───recommendations
+            ├───rec_theophylline_06.txt
+            ├───rec_theophylline_06_hist.png
+            ...
+        └───alignment_records.json
+        └───sequencelib.pickle
 └───src
-│   README.md
-│   requirements.txt
-│   file001.txt    
+    ├───fast12txt.py
+    ├───fastqcleaner.py
+    ├───Sequence.py
+└───README.md
+└───requirements.txt
 │
 ```
 2. Convert the fastq .files to .txt files using the following command:

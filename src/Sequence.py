@@ -119,10 +119,7 @@ class Aptamer():
         '''
         ct = self.get_ct()
         aptamer = self.get_sequence()
-        #states = ['off', 'loop', ')stem', '(stem']
-        #vs = ['.', '(', ')']
-        state = 'off'       # Begin in the off state (no structure is being recorded)
-        #current_stem = ""
+        state = 'off'       # Begin in the off state (no structure is being recorded) one of ['off', 'loop', ')stem', '(stem']
         current_loop = ""
         current_forward_stem = ""
         current_backward_stem = ""
@@ -130,7 +127,7 @@ class Aptamer():
         backward_stems = []
         loops = []
         for i in range(0, len(ct)):
-            v = ct[i]       # v is the current character in the ct structure one of . ( )
+            v = ct[i]       # v is the current character in the ct structure one of '.'   ;   '('   ;   ')'
             nc = aptamer[i]         # nc is the current nucleotide in the aptamer
             if v == '.':
                 if state == "off":      # No structure is being recorded
@@ -183,27 +180,41 @@ class Aptamer():
         if len(current_forward_stem) == len(current_backward_stem) and len(current_forward_stem) != 0:
             forward_stems.append(current_forward_stem)
             backward_stems.append(current_backward_stem)
-            #current_forward_stem = ""
-            #current_backward_stem = ""
         self.forward_stems = forward_stems
         self.backward_stems = backward_stems
         self.loops = loops
 
 
+# Sequence Library class to store experimental sequences and results
 class SequenceLibrary():
     def __init__(self, k=6, with_primers=False):
+        """
+        Initialize the sequence library
+        :param k: kmer size
+        :param with_primers: if True, we include primers in structural analysis
+        """
+        # Initialize the sequence library
         self.sequences = {}
         self.info = {}
         self.k = k
         self.with_primers = with_primers
 
     def newAttr(self, attr_name, attr_value):
+        # Add a new attribute to the sequence library
         setattr(self, attr_name, attr_value)
 
     def get_count_single_run(self, binding_target, rnd):
-        '''
-            Collects all the runs of a given molecule and read type.
-        '''
+        """
+        Get the count of each aptamer in a single run of the given binding target
+        :param binding_target:
+        :param rnd:
+        :return: # Returns a dataframe in which each row corresponds to a unique aptamer sequence
+        # The columns of the dataframe correspond to:
+        # 'seqs' aptamer sequence
+        # 'count' number of occurrences of the aptamer sequence
+        # 'freq' normalized frequency of the aptamer sequence
+        # 'cum_freq' cumulative frequency of the aptamer sequence once the dataframe is ordered in dereasing frequency order
+        """
         run = [rnd]
         path = str(os.getcwd()) + f"/data/{binding_target}_fastq_r2"
         if "r1" in path:
@@ -236,6 +247,11 @@ class SequenceLibrary():
         return counts_df
 
     def get_primers(self, binding_target):
+        """
+        Get the primers for the given binding target
+        :param binding_target:
+        :return: list of primers
+        """
         primer_file = str(os.getcwd()) + f"/data/{binding_target[:4]}_primers.txt"
         with open(primer_file, "r") as f:
             primers = [line.strip() for line in f.readlines()]
@@ -243,9 +259,16 @@ class SequenceLibrary():
         return primers
 
     def get_kmer_counts(self, binding_target, rnd):
+        """
+        Get the counts of each kmer in round rnd for the given binding target
+        :param binding_target:
+        :param rnd:
+        :return:
+        """
         weighted = {}
         unweighted = {}
         print("Getting kmer counts")
+        # Generate weighted (by aptamer counts) and unweighted kmer counts
         for seqid in tqdm(self.info[binding_target][rnd]['seqids']):
             kmers = self.sequences[seqid].kmers
             counts = self.sequences[seqid].rounds[binding_target][rnd]
@@ -258,6 +281,7 @@ class SequenceLibrary():
                     weighted[kmer] += counts
                 else:
                     weighted[kmer] = counts
+        # Add weighted and unweighted counts to the info dictionary
         if 'kmer' not in self.info[binding_target][rnd]['motif_counts'].keys():
             self.info[binding_target][rnd]['motif_counts']['kmer'] = {}
         if rnd not in self.info[binding_target][rnd]['motif_counts']['kmer'].keys():
