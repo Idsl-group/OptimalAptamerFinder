@@ -1,7 +1,7 @@
 import sys
 from matplotlib import pyplot as plt
 from scipy.stats import norm
-sys.path.append("/home/javier/PycharmProjects/OptimalAptamerFinder")
+sys.path.append("./")
 import os, multiprocessing, pickle, random, subprocess
 from difflib import SequenceMatcher
 import numpy as np
@@ -21,57 +21,66 @@ from termcolor import colored
 import datetime
 
 
+# Initialize time that will be used to label this experiment
 TIME = str(datetime.datetime.now())
+# Create directory for results
 if not os.path.exists('results'):
     os.mkdir('results')
 if not os.path.exists('results/'+TIME):
     os.mkdir('results/'+TIME)
-#TabularMSA, DNA, local_pairwise_align_ssw = "", "", ""
-colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'grey']
-higlights = ['on_cyan', 'on_red', 'on_green', 'on_yellow', 'on_blue', 'on_magenta']
-color_combos = [('red', 'on_cyan'), ('green', 'on_cyan'), ('yellow', 'on_cyan'), ('blue', 'on_cyan'), ('magenta', 'on_cyan'), ('grey', 'on_cyan'),
-                ('green', 'on_red'), ('yellow', 'on_red'), ('blue', 'on_red'), ('cyan', 'on_red'), ('magenta', 'on_red'), ('grey', 'on_red'),
-                ('red', 'on_green'), ('yellow', 'on_green'), ('blue', 'on_green'), ('cyan', 'on_green'), ('magenta', 'on_green'), ('grey', 'on_green'),
-                ('red', 'on_yellow'), ('green', 'on_yellow'), ('blue', 'on_yellow'), ('cyan', 'on_yellow'), ('magenta', 'on_yellow'), ('grey', 'on_yellow'),
-                ('red', 'on_blue'), ('green', 'on_blue'), ('yellow', 'on_blue'), ('cyan', 'on_blue'), ('magenta', 'on_blue'), ('grey', 'on_blue'),
-                ('red', 'on_magenta'), ('green', 'on_magenta'), ('yellow', 'on_magenta'), ('blue', 'on_magenta'), ('cyan', 'on_magenta'), ('grey', 'on_magenta'),
-                ('red', 'on_grey'), ('green', 'on_grey'), ('yellow', 'on_grey'), ('blue', 'on_grey'), ('cyan', 'on_grey'), ('magenta', 'on_grey')]
 
 
+# Aptamer class to store information about each aptamer
 class Aptamer():
     def __init__(self, seqid, sequence, primers):
+        """
+        Initializes an aptamer object.
+        :param seqid: ID of the sequence as given by the input file
+        :param sequence: Nucleotide sequence of the aptamer
+        :param primers: Primers used for the aptamer
+        """
         self.sequence = sequence
         self.primers = primers
         self.seqid = seqid
-        self.rounds = {}
-        self.ct = ""
-        self.mfe = 0
-        self.kmers = None
-        self.loops = None
-        self.forward_stems = None
-        self.backward_stems = None
-        self.score = {}
-        self.alignments = {}
-        self.clusters = {}
+        # Initilaize empty attributes
+        self.rounds = {}  # Will store counts in each round of each target molecule {binding_target: {round: count}}
+        self.ct = ""  # ct structure of the aptamer (if available) as given by DNAFold
+        self.mfe = 0  # mfe of the aptamer (if available) as given by DNAFold
+        self.kmers = None # kmers of the aptamer
+        self.loops = None # loops structures found in the aptamer (if any)
+        self.forward_stems = None # stems to the left of the loop
+        self.backward_stems = None # stems to the right of the loop
+        self.score = 0 # store final score given to the aptamer
+        #self.alignments = {} # Not used ?
+        #self.clusters = {} # Not used ?
 
     def get_sequence(self):
+        # Return the sequence of the aptamer
         return self.sequence
 
     def get_ct(self):
+        # Return the ct structure of the aptamer
         return self.ct
 
     def get_kmers(self):
+        # Return the kmers of the aptamer
         return self.kmers
 
     def get_hairpins(self):
+        # Return the hairpins of the aptamer
         return self.forward_stems, self.backward_stems, self.loops
 
     def newAttr(self, attr_name, attr_value):
+        # Create new class attribute
         setattr(self, attr_name, attr_value)
 
     def add_round(self, binding_target, rnd, rnd_counts):
         """
-        Adds a round to the aptamer.
+        Add a new round to the aptamer.
+        :param binding_target: binding target molecule of the aptamer
+        :param rnd: round of the aptamer
+        :param rnd_counts: number of counts of the aptamer in the round for the given binding target
+        :return:
         """
         if binding_target not in self.rounds.keys():
             self.rounds[binding_target] = {rnd: rnd_counts}
@@ -80,7 +89,9 @@ class Aptamer():
 
     def add_ct(self, ct_dict):
         """
-        Adds a ct to the aptamer.
+        Add ct structure and mfe to the aptamer form dictionary with results from RNAFold
+        :param ct_dict: {'ct': ct_structure, 'mfe': mfe}
+        :return:
         """
         try:
             self.ct = ct_dict[self.sequence]['ct']
@@ -92,7 +103,8 @@ class Aptamer():
 
     def add_kmers(self, k=6):
         '''
-        Returns a list of kmers of length k in the aptamer
+        Creates a list of kmers of length k in the aptamer
+        :param k: length of the kmers
         '''
         kmers = []
         sequence = self.sequence.replace(self.primers[0], '').replace(self.primers[1], '')
@@ -102,76 +114,77 @@ class Aptamer():
 
     def add_hairpins(self):
         '''
-        Returns a list of hairpins in the aptamer
+        Creates a list of hairpins in the aptamer
+        The hairpin structure is store in the forward_stems, backward_stems and loops attributes of the class.
         '''
         ct = self.get_ct()
         aptamer = self.get_sequence()
-        states = ['off', 'loop', ')stem', '(stem']
-        vs = ['.', '(', ')']
-        state = 'off'
-        current_stem = ""
+        #states = ['off', 'loop', ')stem', '(stem']
+        #vs = ['.', '(', ')']
+        state = 'off'       # Begin in the off state (no structure is being recorded)
+        #current_stem = ""
         current_loop = ""
         current_forward_stem = ""
         current_backward_stem = ""
         forward_stems = []
         backward_stems = []
         loops = []
-        bending_points = []
         for i in range(0, len(ct)):
-            v = ct[i]
-            nc = aptamer[i]
+            v = ct[i]       # v is the current character in the ct structure one of . ( )
+            nc = aptamer[i]         # nc is the current nucleotide in the aptamer
             if v == '.':
-                if state == "off":
+                if state == "off":      # No structure is being recorded
                     state == "off"
-                if state == 'loop':
+                if state == 'loop':     # We are recording a loop
                     current_loop += nc
-                    state == "loop"
-                elif state == ')stem':
-                    if len(current_forward_stem) == len(current_backward_stem):
+                    state == "loop"     # Stay in the loop state
+                elif state == ')stem':  # We are recording a backward stem
+                    if len(current_forward_stem) == len(current_backward_stem): # If the length of the forward and backward stems are the same,
+                                                                                #  we are done recording the backward stem and can add them to the lists
                         forward_stems.append(current_forward_stem)
                         backward_stems.append(current_backward_stem)
-                        current_forward_stem = ""
-                        current_backward_stem = ""
-                    state = "off"
-                elif state == "(stem":
+                        current_forward_stem = ""       # Reset the current forward stem
+                        current_backward_stem = ""      # Reset the current backward stem
+                    state = "off"        # Closed structure, go back to the off state
+                elif state == "(stem":   # We are recording a forward stem
                     current_loop += nc
-                    state = "loop"
+                    state = "loop"       # Begin recording a loop
             elif v == '(':
-                if state == "off":
+                if state == "off":      # No structure is being recorded
                     current_forward_stem += nc
-                if state == 'loop':
+                if state == 'loop':     # We are recording a loop
                     current_forward_stem += nc
-                    current_loop = ""
-                elif state == ')stem':
-                    if len(current_forward_stem) == len(current_backward_stem):
+                    current_loop = ""    # Reset the current loop
+                elif state == ')stem':  # We are recording a backward stem
+                    if len(current_forward_stem) == len(current_backward_stem):# If the length of the forward and backward stems are the same,
+                                                                               #  we are done recording the backward stem and can add them to the lists
                         forward_stems.append(current_forward_stem)
                         backward_stems.append(current_backward_stem)
-                        current_forward_stem = ""
-                        current_backward_stem = ""
+                        current_forward_stem = ""       # Reset the current forward stem
+                        current_backward_stem = ""      # Reset the current backward stem
                     current_forward_stem += nc
-                elif state == "(stem":
+                elif state == "(stem":       # We are recording a forward stem
                     current_forward_stem += nc
-                state = '(stem'
+                state = '(stem'     # Forward stem state
             elif v == ')':
-                if state == "off":
+                if state == "off":      # No structure is being recorded
                     current_backward_stem += nc
-                if state == 'loop':
-                    loops.append(current_loop)
-                    current_loop = ""
+                if state == 'loop':     # We are recording a loop
+                    loops.append(current_loop)     # Add the current loop to the list of loops
+                    current_loop = ""    # Reset the current loop
                     current_backward_stem += nc
-                    bending_points.append(i)
-                elif state == ')stem':
+                elif state == ')stem':      # We are recording a backward stem
                     current_backward_stem += nc
-                elif state == "(stem":
+                elif state == "(stem":       # We are recording a forward stem
                     current_forward_stem += nc
-                    bending_points.append(i)
-                    loops.append("")
-                state = ")stem"
+                    loops.append("")              # Add an empty loop to the list of loops
+                state = ")stem"     # Backward stem state
+        # Add the last structures to the lists
         if len(current_forward_stem) == len(current_backward_stem) and len(current_forward_stem) != 0:
             forward_stems.append(current_forward_stem)
             backward_stems.append(current_backward_stem)
-            current_forward_stem = ""
-            current_backward_stem = ""
+            #current_forward_stem = ""
+            #current_backward_stem = ""
         self.forward_stems = forward_stems
         self.backward_stems = backward_stems
         self.loops = loops
