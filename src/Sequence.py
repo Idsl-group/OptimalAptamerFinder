@@ -16,7 +16,8 @@ from skbio import TabularMSA, DNA
 from skbio.alignment import local_pairwise_align_ssw
 import hashlib
 from tqdm import tqdm
-from src.nc2hp import *
+from termcolor import colored
+#from src.nc2hp import
 import datetime
 
 
@@ -778,14 +779,14 @@ def view_clusters(binding_target, rnd):
         print(f"seq{i} # {seqids[i]} | {sequence} | {ct} | {final_score}  --> {rounds}")
 
 
-def generate_all_recommendations():
+def generate_all_recommendations(binding_targets):
     with open(f'results/{TIME}/alignment_records.json', 'r') as f:
         alignment_records = json.load(f)
     f.close()
     with open(f'results/{TIME}/sequencelib.pickle', 'rb') as f:
         sequencelib = pickle.load(f)
     f.close()
-    for binding_target in ['theophylline']: #['ampicillin', 'chloramphenicol', 'liposome' , 'caffeine', 'theophylline', 'lactate', 'uricacid', 'oxytetracycline', 'uricacid']:
+    for binding_target in binding_targets: #['ampicillin', 'chloramphenicol', 'liposome' , 'caffeine', 'theophylline', 'lactate', 'uricacid', 'oxytetracycline', 'uricacid']:
         if binding_target == 'caffeine':
             rnds = [12, 15, 20]
         elif binding_target == 'lactate':
@@ -825,7 +826,10 @@ def generate_all_recommendations():
                     sequencelib.sequences[seqid].score = 0
             # Sort seqids based on self.sequences[seqid].final_scor in decreasing order
             seqids = sorted(seqids, key=lambda seqid: sequencelib.sequences[seqid].score, reverse=True)
-            with open(str(os.getcwd()) + f"results/{TIME}/recommendations/rec_{binding_target}_{rnd}.txt", 'w') as f:
+            # Crete directory recommendations if it doesn't exist
+            if not os.path.exists(str(os.getcwd()) + f'/results/{TIME}/recommendations'):
+                os.makedirs(str(os.getcwd()) + f'/results/{TIME}/recommendations')
+            with open(str(os.getcwd()) + f"/results/{TIME}/recommendations/rec_{binding_target}_{rnd}.txt", 'w') as f:
                 for i in range(0, 20):
                     seqid = seqids[i]
                     try:
@@ -856,11 +860,11 @@ def generate_all_recommendations():
             ax.set_title(f"Score distribution in {binding_target}_{rnd}")
             ax.set_xlim(xmin, xmax)
             ax.legend()
-            plt.savefig(str(os.getcwd()) + f"/results/{TIME}/recommendations_3/rec_{binding_target}_{rnd}_hist.png")
+            plt.savefig(str(os.getcwd()) + f"/results/{TIME}/recommendations/rec_{binding_target}_{rnd}_hist.png")
             plt.close()
 
 
-def main(binding_targets='theophylline'):
+def main(binding_targets=['theophylline']):
     sequencelib = SequenceLibrary(with_primers=False)
     for binding_target in binding_targets:
         with open(f'data/{binding_target[:4]}list.txt') as f:
@@ -876,7 +880,7 @@ def main(binding_targets='theophylline'):
         pickle.dump(sequencelib, f)
     f.close()
     get_priority_clusters()
-    generate_all_recommendations()
+    generate_all_recommendations(binding_targets)
 
 
 if __name__ == '__main__':

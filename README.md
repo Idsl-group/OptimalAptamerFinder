@@ -40,9 +40,9 @@ python3 src/fastq2txt.py theophylline r2
 ```
 3. Run the program and see the output in the `results/` folder by running the following command:
 ```
-python3 src/Sequence.py with theophylline
+python3 src/Sequence.py theophylline
 ```
 To run the program with several binding_targets, separate them by a hyphen.
 ```
-python3 src/Sequence.py with theophylline-uricacid
+python3 src/Sequence.py theophylline-uricacid
 ```

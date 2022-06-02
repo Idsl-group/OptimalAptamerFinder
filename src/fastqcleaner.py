@@ -5,9 +5,11 @@ import re
 import random
 
 def random_nucleotide(match):
+    # Function to pass as input to re.sub to replace Ns with random nucleotides
     return random.sample(["A", "C", "G", "T"], k=1)[0]
 
 def cleanfastq(indir, outdir=None):
+    # Substitutes al Ns in .fastq sequences by ranfom nucleotides
     rel_range = [24, 54]
 
     if outdir is None:
