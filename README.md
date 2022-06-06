@@ -51,3 +51,73 @@ To run the program with several binding_targets, separate them by a hyphen.
 ```
 python3 src/Sequence.py theophylline-uricacid
 ```
+
+To visualize the data we need to look at the 2 main classes of this project: SequenceLibrary and Aptamer
+
+## SequenceLibrary Class
+Contains four attributes:
+- k: the length of the k-mer
+- with_primers: a boolean indicating whether the sequences in the library keep the primers
+- info: a dictionary containing information about the library
+- sequences: a dictionary of **Aptamer** objects
+
+   ####  info dictionary
+   The info dictionary has a nested dictionary structure with the following keys and values:
+    ```
+    └───info: {
+        ├───binding_target_1:{
+            ├───R_1: {
+                ├─── seqids: list of ids corresponding to unique sequences in the library
+                ├─── motif_counts: {
+                    ├─── kmer: {
+                        ├─── unweighted: {
+                            ├─── kmer1: count1
+                            ├─── kmer2: count2
+                            ...
+                        }
+                        └─── weighted: {...}
+                        ...
+                        }
+                    }   
+                    ├─── loops: number {...}
+                    ├─── forward_stems: {...}
+                    └─── backward_stems: {...}
+                    }
+                }
+                └─── motif_hvalues: vestigial attribute (Need to make sure that it can be safely removed)
+                }
+            ├───R_2: {...}
+             ...
+            └───R_p: {...}
+            }
+         ...
+        ├───binding_target_molecule_n-1: {...}
+        └───binding_target_molecule_n: {...}
+        }
+    ```
+  
+    #### sequences dictionary
+    The sequences dictionary is much simpler. Its keys correspond to sequence ids from the info dictionary and the value
+    of each item is an **Aptamer** object. Ech **Aptamer** object has the following attributes:
+    ```
+    Aptamer() <- seqid
+    ├───sequence = nucleotide sequence of the aptamer with the given seqid
+    ├───score = final score given to the aptamer
+    ├───rounds = {
+        'binding_target_1': {
+                             'R_1': counts in R_1, 
+                             'R_2': counts in R_2 
+                               ...
+                             },
+        'binding_target_2': {},
+        ...
+        }
+    ├───primers = [forward_primer, backward_primer]  (Empty strings if library is done wihtout primers)
+    ├───loops = list of loops found in the sequence
+    ├───kmers = list of kmers found in the sequence
+    ├───forward_stems = list of forward stems found in the sequence
+    ├───backward_stems = list of backward stems found in the sequence
+    ├───ct = ct structure of the aptamer
+    └───dg = 0
+    ```
+    

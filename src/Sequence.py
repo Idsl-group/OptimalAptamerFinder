@@ -45,7 +45,7 @@ class Aptamer():
         # Initilaize empty attributes
         self.rounds = {}  # Will store counts in each round of each target molecule {binding_target: {round: count}}
         self.ct = ""  # ct structure of the aptamer (if available) as given by DNAFold
-        self.mfe = 0  # mfe of the aptamer (if available) as given by DNAFold
+        self.dg = 0  # dg of the aptamer (if available) as given by DNAFold
         self.kmers = None # kmers of the aptamer
         self.loops = None # loops structures found in the aptamer (if any)
         self.forward_stems = None # stems to the left of the loop
@@ -89,16 +89,16 @@ class Aptamer():
 
     def add_ct(self, ct_dict):
         """
-        Add ct structure and mfe to the aptamer form dictionary with results from RNAFold
-        :param ct_dict: {'ct': ct_structure, 'mfe': mfe}
+        Add ct structure and dg to the aptamer form dictionary with results from RNAFold
+        :param ct_dict: {'ct': ct_structure, 'dg': dg}
         :return:
         """
         try:
             self.ct = ct_dict[self.sequence]['ct']
-            self.mfe = ct_dict[self.sequence]['mfe']
+            self.dg = ct_dict[self.sequence]['dg']
         except KeyError:
             self.ct = ""
-            self.mfe = 0
+            self.dg = 0
             print("KeyError:", self.sequence)
 
     def add_kmers(self, k=6):
@@ -309,8 +309,8 @@ class SequenceLibrary():
                     #    sequence = sequence.replace(primers[0], "").replace(primers[1], "")
                 else:
                     ct = line.strip().split(" ")[0]
-                    mfe = float(line.strip().split(" (")[-1].replace("(", "").replace(")", ""))
-                    ct_dict[sequence] = {'ct': ct, 'mfe': mfe}
+                    dg = float(line.strip().split(" (")[-1].replace("(", "").replace(")", ""))
+                    ct_dict[sequence] = {'ct': ct, 'dg': dg}
         f.close()
         for seqid in self.info[binding_target][rnd]['seqids']:
             self.sequences[seqid].add_ct(ct_dict)
@@ -686,7 +686,7 @@ class SequenceLibrary():
             cks = 100 * sum([cluster_kmer_counts[kmer] for kmer in kmers]) / (
                             len(kmers) * max(cluster_kmer_counts.values()))
             # Secondary structure stability score
-            dg = abs(sequences[s].mfe)
+            dg = abs(sequences[s].dg)
             # Sequence count score
             sc = 100*sequences[s].rounds[binding_target][rnd]/max_counts
             #Strcutural scores
@@ -918,6 +918,9 @@ def main(binding_targets=['theophylline']):
     f.close()
     get_priority_clusters()
     generate_all_recommendations(binding_targets)
+    with open(f'results/{TIME}/sequencelib.pickle', 'wb') as f:
+        pickle.dump(sequencelib, f)
+    f.close()
 
 
 if __name__ == '__main__':
