@@ -121,3 +121,20 @@ Contains four attributes:
     └───dg = 0
     ```
     
+
+
+dictonary = {'key1':value1,
+             'key2':value2,
+             ...
+             }
+
+class Human():
+    def __init__(self, x, y):
+        self.name = x
+        self.age = y
+
+    def say_hello(self):
+        print('Hello, my name is {} and I am {} years old.'.format(self.name, self.age))
+
+human1 = Human('John', 25)
+human1.say_hello()

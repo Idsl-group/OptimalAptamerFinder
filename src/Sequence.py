@@ -36,8 +36,8 @@ class Aptamer():
         """
         Initializes an aptamer object.
         :param seqid: ID of the sequence as given by the input file
-        :param sequence: Nucleotide sequence of the aptamer
-        :param primers: Primers used for the aptamer
+        :param sequence: Nucleotide sequence of the aptamer (30-nucleotide region)
+        :param primers: Primers used for the aptamer ['ACGTCGT', 'ACGTCGT'] or ['', '']
         """
         self.sequence = sequence
         self.primers = primers
@@ -70,9 +70,9 @@ class Aptamer():
         # Return the hairpins of the aptamer
         return self.forward_stems, self.backward_stems, self.loops
 
-    def newAttr(self, attr_name, attr_value):
+    #def newAttr(self, attr_name, attr_value):
         # Create new class attribute
-        setattr(self, attr_name, attr_value)
+    #    setattr(self, attr_name, attr_value)
 
     def add_round(self, binding_target, rnd, rnd_counts):
         """
@@ -117,7 +117,7 @@ class Aptamer():
         Creates a list of hairpins in the aptamer
         The hairpin structure is store in the forward_stems, backward_stems and loops attributes of the class.
         '''
-        ct = self.get_ct()
+        ct = self.get_ct()   #'....(((...))....'
         aptamer = self.get_sequence()
         state = 'off'       # Begin in the off state (no structure is being recorded) one of ['off', 'loop', ')stem', '(stem']
         current_loop = ""
@@ -191,21 +191,18 @@ class SequenceLibrary():
         """
         Initialize the sequence library
         :param k: kmer size
-        :param with_primers: if True, we include primers in structural analysis
+        :param with_primers: if True, we include primers in structural analysis of each aptamer
         """
         # Initialize the sequence library
-        self.sequences = {}
-        self.info = {}
         self.k = k
         self.with_primers = with_primers
-
-    def newAttr(self, attr_name, attr_value):
-        # Add a new attribute to the sequence library
-        setattr(self, attr_name, attr_value)
+        # Empty dictionaries to store the sequences and relevant information
+        self.sequences = {}
+        self.info = {}
 
     def get_count_single_run(self, binding_target, rnd):
         """
-        Get the count of each aptamer in a single run of the given binding target
+        Get the count of each unique aptamer in a single run of the given binding target
         :param binding_target:
         :param rnd:
         :return: # Returns a dataframe in which each row corresponds to a unique aptamer sequence
@@ -213,18 +210,20 @@ class SequenceLibrary():
         # 'seqs' aptamer sequence
         # 'count' number of occurrences of the aptamer sequence
         # 'freq' normalized frequency of the aptamer sequence
-        # 'cum_freq' cumulative frequency of the aptamer sequence once the dataframe is ordered in dereasing frequency order
+        # 'cum_freq' cumulative frequency of the aptamer sequence once the dataframe is ordered in decreasing frequency order
         """
-        run = [rnd]
-        path = str(os.getcwd()) + f"/data/{binding_target}_fastq_r2"
+        # Set some parameters to search the directories for the appropriate file
+        path = str(os.getcwd()) + f"/data/{binding_target}_fastq_r2" # Path to folder with sequenced libraries of each round
+        # Indices of the relevant 30-mer region of the aptamer
         if "r1" in path:
             rel_range = [24, 54]
         elif "r2" in path:
             rel_range = [18, 48]
-        file_prefix = path.split("/data/")[1][:4]
+        #file_prefix = path.split("/data/")[1][:4]
+        # Iterate over all aptamer shown in the sequenced library and add them to the list df
         df = []
         for file in os.listdir(path):
-            if file.replace(file_prefix, "").replace(".fastq", "") in run:
+            if file.replace(path.split("/data/")[1][:4], "").replace(".fastq", "") in [rnd]:
                 # print("Using ", file)
                 seq_reader = sequences.file_reader(path + "/" + file)
                 for sequence in seq_reader:
@@ -232,9 +231,11 @@ class SequenceLibrary():
                     df.append(seq)
             else:
                 pass
+        # Convert df list into a pandas dataframe
         df = pd.DataFrame(df, columns=['seq'])
+        # Create the counts_df which contains the number oc occurrences of each unique aptamer
         counts_df = pd.DataFrame(df['seq'].value_counts()).rename(columns={'seq': 'counts'})
-        counts_df = counts_df
+        # Extract som other values from the dataframe
         counts_df['seqs'] = counts_df.index.to_numpy()
         counts_df['freq'] = counts_df['counts'] / counts_df['counts'].sum()
         counts_df = counts_df.reset_index().sort_values(by=['freq'], ascending=False)
@@ -250,7 +251,7 @@ class SequenceLibrary():
         """
         Get the primers for the given binding target
         :param binding_target:
-        :return: list of primers
+        :return: list with forward primer and reverse primer
         """
         primer_file = str(os.getcwd()) + f"/data/{binding_target[:4]}_primers.txt"
         with open(primer_file, "r") as f:
@@ -265,21 +266,22 @@ class SequenceLibrary():
         :param rnd:
         :return:
         """
-        weighted = {}
-        unweighted = {}
+        unweighted = {} # Counts in how many unique aptamers each kmer appears (adds 1 to the count if the aptamer contains the kmer)
+        weighted = {} # Counts how many times in total each kmer appears (adds the counts of the aptamer to the count if the aptamer contains the kmer)
         print("Getting kmer counts")
         # Generate weighted (by aptamer counts) and unweighted kmer counts
-        for seqid in tqdm(self.info[binding_target][rnd]['seqids']):
-            kmers = self.sequences[seqid].kmers
-            counts = self.sequences[seqid].rounds[binding_target][rnd]
+        for seqid in tqdm(self.info[binding_target][rnd]['seqids']): # Iterate over the sequence ids corresponding to the given bindig_target and the given round
+            # Remember that each unique seqid corresponds to a unique aptamer
+            kmers = self.sequences[seqid].get_kmers()  # Get list of kmers in the aptamer
+            counts = self.sequences[seqid].rounds[binding_target][rnd] # Get counts of the aptamer in the binding_target in the round
             for kmer in kmers:
-                if kmer in unweighted:
+                if kmer in unweighted: # Add one to the kmer count
                     unweighted[kmer] += 1
-                else:
+                else: # Initialize the kmer count at 1
                     unweighted[kmer] = 1
-                if kmer in weighted:
+                if kmer in weighted: # Add counts of the aptamer to the kmer count
                     weighted[kmer] += counts
-                else:
+                else: # Initialize the kmer counts as the counts of the aptamer
                     weighted[kmer] = counts
         # Add weighted and unweighted counts to the info dictionary
         if 'kmer' not in self.info[binding_target][rnd]['motif_counts'].keys():
@@ -288,35 +290,58 @@ class SequenceLibrary():
             self.info[binding_target][rnd]['motif_counts']['kmer'] = {'weighted': self.filter_dict(weighted),
                                                                       'unweighted': self.filter_dict(unweighted)}
 
-    def get_structures(self, binding_target, rnd, structure_mode='from_nc'):
-        #primers = self.get_primers(binding_target)
-        primers = ["", ""]
+    def get_structures(self, binding_target, rnd, structure_mode='from_ct'):
+        """
+        Get the structures of the aptamers for the given binding target in the given round
+        :param binding_target:
+        :param rnd:
+        :param structure_mode: At some point during development we wanted to have different ways to extract the structure
+                                eventually we only calculated the structure from the ct file so this isn't necessary anymore.
+                                To be removed.
+        :return:
+        """
+        # Create a file (temp_seqs.txt) with all the unique aptamer sequences (one per line)
         seq_file = str(os.getcwd()) + "/temp_seqs.txt"
         with open(seq_file, 'w') as f:
             for seqid in self.info[binding_target][rnd]['seqids']:
                 # f.write(">" + seqid + "\n")
                 f.write(self.sequences[seqid].sequence + "\n")
         f.close()
+        # Use RNAfold to get the structures and mfes of all the aptamers and write them to (temp_ct.txt)
         ct_file = str(os.getcwd()) + "/temp_ct.txt"
         cmd = f"RNAfold --jobs={multiprocessing.cpu_count()} --infile={seq_file} --outfile={ct_file.split('/')[-1]} --noPS -T {37.0} --noconv"
         subprocess.call([cmd], shell=True)
+        """
+        The structure of temp_ct.txt is the following:
+        AGCTGGAATTTCGTTTACGTTACGGGAGTT
+        ........((((((.......))))))... (-5.2)
+        and so on for each aptamer
+        """
+        # Create a dictionary from the information in temp_ct.txt
         ct_dict = {}
         with open(ct_file, 'r') as f:
             for i, line in enumerate(f):
                 if i % 2 == 0:
+                    # If line is even, the line contains the sequence
                     sequence = line.strip()
-                    #if not self.with_primers:
-                    #    sequence = sequence.replace(primers[0], "").replace(primers[1], "")
-                else:
+                else: # If line is odd, the line contains the ct structure and mfe of the aptamer i the previous line
                     ct = line.strip().split(" ")[0]
                     dg = float(line.strip().split(" (")[-1].replace("(", "").replace(")", ""))
                     ct_dict[sequence] = {'ct': ct, 'dg': dg}
         f.close()
+        # Add ct structure, mfe and calculate the harpin motifs of all sequences
         for seqid in self.info[binding_target][rnd]['seqids']:
             self.sequences[seqid].add_ct(ct_dict)
             self.sequences[seqid].add_hairpins()
 
     def get_structure_counts(self, binding_target, rnd):
+        """
+        Get the counts of each structure in round rnd for the given binding target
+        :param binding_target:
+        :param rnd:
+        :return:
+        """
+        # Wont't explain since the idea here is the same as in self.get_kmer_counts() but with different hairpins, stems and loops instead of kmers
         hairpins_weighted = {}
         hairpins_unweighted = {}
         stems_weighted = {}
@@ -368,51 +393,70 @@ class SequenceLibrary():
 
     def add_data(self, binding_target, rnd, structure_mode='from_nc', top_k=None):
         """
-        Add data from round to the library
+        Add the data to the info dictionary
+        :param binding_target:
+        :param rnd:
+        :param structure_mode:
+        :param top_k: used if we only want to use the top k most common sequences of the library. Never really used it
+        :return:
         """
+        # Ge primers
         if self.with_primers:
             primers = self.get_primers(binding_target)
         else:
             primers = ["", ""]
+        # Get sequence counts
         if top_k is None:
             df = self.get_count_single_run(binding_target, rnd)
         else:
             df = self.get_count_single_run(binding_target, rnd).head(top_k)
+        # Get squences and counts as lists. Also initialize an empty list to store the seqids
         sequences = df['seqs'].tolist()
         counts = df['counts'].tolist()
         seqids = []
+        # self.info = {} is a dictionary that contains several other dictionaries.
+        # On the first level there are the different binding_targets of the study (usually we only compute the library for one binding_target at a
+        # time but this allows you to store information of multiple binding_targets at the same time)
         if binding_target not in self.info.keys():
-            self.info[binding_target] = {rnd: {'seqids': {},
-                                               'motif_counts': {},
+            self.info[binding_target] = {rnd: {'seqids': {}, # Will store seqids and aptamers for given rnd
+                                               'motif_counts': {}, # Will store different motif counts for given rnd
                                                }}
         if rnd not in self.info[binding_target].keys():
             self.info[binding_target][rnd] = {'seqids': {},
                                               'motif_counts': {},
                                               }
+        # Add the data to the info dictionary
         print(f"Adding data for {binding_target} from round {rnd} to library")
         for i in tqdm(range(0, len(sequences))):
-            sequence = primers[0] + sequences[i] + primers[1]
-            seqid = hashlib.sha1(str(sequence).encode('utf8')).hexdigest()[:10]
-            seqids.append(seqid)
-            if seqid in self.sequences.keys():
+            sequence = primers[0] + sequences[i] + primers[1] # Add primers to the sequence
+            seqid = hashlib.sha1(str(sequence).encode('utf8')).hexdigest()[:10] # Generate seqid with a hash
+            seqids.append(seqid) # Add seqid to the list of seqids
+            if seqid in self.sequences.keys(): # If seqid is already in the library (this can happen if the aptamer appeared
+                                                # in an earlier round or previously studied binding_target), add the round counts
+                                                # to the Aptamer object
                 self.sequences[seqid].add_round(binding_target, rnd, counts[i])
-            else:
+            else:  # If seqid is not in the library, create a new Aptamer object
                 aptamer = Aptamer(seqid, sequence, primers)
-                aptamer.add_round(binding_target, rnd, counts[i])
-                aptamer.add_kmers(self.k)
-                self.sequences[aptamer.seqid] = aptamer
-        self.info[binding_target][rnd]['seqids'] = seqids
+                aptamer.add_round(binding_target, rnd, counts[i]) # Add the round counts to the Aptamer object
+                aptamer.add_kmers(self.k) # Add kmers to the aptamer
+                self.sequences[aptamer.seqid] = aptamer # Add aptamer and seqid to the self.sequences dictionary
+        self.info[binding_target][rnd]['seqids'] = seqids # Add all seqids (of all aptamers that appear for the given binding_target and rnd to the dictioanry
+        # Initialize empty motif counts dicitonary to later hold counts of kmers and
         if 'motif_counts' not in self.info[binding_target][rnd].keys():
             self.info[binding_target][rnd]['motif_counts'] = {}
+        # motif_hvalues was initially going to hold the aplificantion values of different motifs but we ended up not using it
+        # Ignore it
         if 'motif_hvalues' not in self.info[binding_target][rnd].keys():
             self.info[binding_target][rnd]['motif_hvalues'] = {}
+        # Get kmer counts and structures of all aptamers for the given binding_target in the given round
         self.get_kmer_counts(binding_target, rnd)
         self.get_structures(binding_target, rnd, structure_mode=structure_mode)
-        #self.get_structure_counts(binding_target, rnd)
 
     def get_motif_hvalues(self, binding_target):
         """
-        Calculate hierarchical values for all motifs
+        Calculate amplification values for all motifs for the given binding_target
+        This function is never used but I kept it here because it could have been useful
+        I encourage you to signore it
         """
         rnds = list(self.info[binding_target].keys())
         for motiftype in self.info[binding_target][rnds[0]]['motif_counts'].keys():
@@ -452,10 +496,8 @@ class SequenceLibrary():
                     else:
                         self.info[binding_target][rnd]['motif_hvalues'][motiftype]['unweighted'] = motif_values[rnd]
 
+    """
     def calculate_sequence_scores(self, binding_target, rnd, scoretype='counts', motiftype='kmer', weighted=True, scaletype='sum'):
-        """
-        Calculate the sequence scores for each sequence
-        """
         data = self.info[binding_target][rnd][scoretype][motiftype]['weighted' if weighted else 'unweighted']
         idx = list(data.keys())
         values = list(data.values())
@@ -470,6 +512,7 @@ class SequenceLibrary():
         for seqid in self.info[binding_target][rnd]['seqids']:
             self.sequences[seqid].add_score(df, binding_target, rnd, scoretype=scoretype, motiftype=motiftype,
                                             weighted=weighted)
+    """
 
     def filter_dict(self, unfiltered_dict, percentile=0.5):
         """
